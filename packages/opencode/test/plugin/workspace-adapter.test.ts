@@ -27,10 +27,12 @@ import { testEffect } from "../lib/effect"
 import { AccountTest } from "../fake/account"
 import { AuthTest } from "../fake/auth"
 import { NpmTest } from "../fake/npm"
+import { AuthWellKnownTest } from "../fake/auth-well-known"
 
 const configLayer = Config.layer.pipe(
   Layer.provide(EffectFlock.defaultLayer),
   Layer.provide(FSUtil.defaultLayer),
+  Layer.provide(AuthWellKnownTest.empty),
   Layer.provide(Env.defaultLayer),
   Layer.provide(AuthTest.empty),
   Layer.provide(AccountTest.empty),

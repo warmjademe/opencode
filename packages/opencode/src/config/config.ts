@@ -8,7 +8,7 @@ import { mergeDeep } from "remeda"
 import { Global } from "@opencode-ai/core/global"
 import fsNode from "fs/promises"
 import { Flag } from "@opencode-ai/core/flag/flag"
-import { Auth } from "../auth"
+import { AuthWellKnown } from "@opencode-ai/core/auth-well-known"
 import { Env } from "../env"
 import { applyEdits, modify } from "jsonc-parser"
 import { InstallationLocal, InstallationVersion } from "@opencode-ai/core/installation/version"
@@ -176,7 +176,7 @@ export const layer = Layer.effect(
   Service,
   Effect.gen(function* () {
     const fs = yield* FSUtil.Service
-    const authSvc = yield* Auth.Service
+    const authWellKnown = yield* AuthWellKnown.Service
     const accountSvc = yield* Account.Service
     const env = yield* Env.Service
     const npmSvc = yield* Npm.Service
@@ -312,8 +312,6 @@ export const layer = Layer.effect(
 
     const loadInstanceState = Effect.fn("Config.loadInstanceState")(
       function* (ctx: InstanceContext) {
-        const auth = yield* authSvc.all().pipe(Effect.orDie)
-
         let result: Info = {}
         const authEnv: Record<string, string> = {}
         const consoleManagedProviders = new Set<string>()
@@ -352,10 +350,8 @@ export const layer = Layer.effect(
           return mergePluginOrigins(source, next.plugin, kind)
         }
 
-        for (const [key, value] of Object.entries(auth)) {
-          if (value.type === "wellknown") {
-            const url = key.replace(/\/+$/, "")
-            authEnv[value.key] = value.token
+        for (const [url, value] of Object.entries(yield* authWellKnown.all().pipe(Effect.orDie))) {
+          if (value) {
             const wellknownURL = `${url}/.well-known/opencode`
             yield* Effect.logDebug("fetching remote config", { url: wellknownURL })
             const wellknown = yield* fetchRemoteJson(wellknownURL, undefined, ConfigV1.WellKnown, url)
@@ -675,12 +671,12 @@ export const defaultLayer = layer.pipe(
   Layer.provide(EffectFlock.defaultLayer),
   Layer.provide(FSUtil.defaultLayer),
   Layer.provide(Env.defaultLayer),
-  Layer.provide(Auth.defaultLayer),
+  Layer.provide(AuthWellKnown.defaultLayer),
   Layer.provide(Account.defaultLayer),
   Layer.provide(Npm.defaultLayer),
   Layer.provide(FetchHttpClient.layer),
 )
 
-export const node = LayerNode.make(layer, [FSUtil.node, Auth.node, Account.node, Env.node, Npm.node, httpClient])
+export const node = LayerNode.make(layer, [FSUtil.node, AuthWellKnown.node, Account.node, Env.node, Npm.node, httpClient])
 
 export * as Config from "./config"
